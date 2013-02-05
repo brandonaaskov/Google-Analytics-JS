@@ -7,7 +7,7 @@ var _gaq = _gaq || [];
 })();
 
 (function(){
-  var _accountID = 'UA-XXXXX-X',
+  var _accountID = '',
   _debug = true, //toggle to see console output in your brower's debug tools
   _experience,
   _videoPlayer,
@@ -15,6 +15,7 @@ var _gaq = _gaq || [];
   _customVideoID,
   _mediaComplete = true,
   _mediaPaused = false,
+  _isSeeking = false,
   _milestonesTracked = {
     MILESTONE_25: false,
     MILESTONE_50: false,
@@ -109,7 +110,7 @@ var _gaq = _gaq || [];
   //---------------------------------------------------------------------- EVENT LISTENERS
   function onMediaBegin(pEvent)
   {
-    log('onMediaBegin', pEvent); //this log might fire twice because it's also being called from onMediaPlay, but it should only track once
+    log('onMediaBegin()', pEvent); //this log might fire twice because it's also being called from onMediaPlay, but it should only track once
 
     if(_mediaComplete)
     {
@@ -121,14 +122,14 @@ var _gaq = _gaq || [];
 
   function onMediaChange(pEvent)
   {
-    log('onMediaChange', pEvent);
+    log('onMediaChange()', pEvent);
 
     updateCurrentVideo();
   }
 
   function onMediaComplete(pEvent)
   {
-    log('onMediaComplete', pEvent); //this log might fire twice because it's also being called from onMediaProgress, but it should only track once
+    log('onMediaComplete()', pEvent); //this log might fire twice because it's also being called from onMediaProgress, but it should only track once
 
     if(!_mediaComplete)
     {
@@ -140,30 +141,47 @@ var _gaq = _gaq || [];
 
   function onMediaError(pEvent)
   {
-    log('onMediaError', pEvent);
+    log('onMediaError()', pEvent);
 
     _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_ERROR, _customVideoID, -1, true]);
   }
 
   function onMediaPlay(pEvent)
   {
-    log('onMediaPlay', pEvent);
+    log('onMediaPlay()', pEvent);
 
     if(_mediaComplete)
     {
       onMediaBegin(pEvent);
     }
-
-    if(_mediaPaused)
+    else //events that fired during playback of a video (ie not the first mediaPlay event)
     {
-      _mediaPaused = false;
-      _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_RESUME, _customVideoID, -1, true]);
+      if(_mediaPaused && !_isSeeking)
+      {
+        _mediaPaused = false;
+        _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_RESUME, _customVideoID, -1, true]);
+      }
     }
   }
 
   function onMediaProgress(pEvent)
   {
-    // log('onMediaProgress', pEvent);
+    log('onMediaProgress()', pEvent);
+
+    if(_isSeeking) //must be before _currentPosition gets updated because of the check in here
+    {
+      if(pEvent.position > _currentPosition)
+      {
+        _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_FORWARD, _customVideoID, -1, true]);
+      }
+      else
+      {
+        _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_BACKWARD, _customVideoID, -1, true]);
+      }
+
+      log('setting _isSeeking to false');
+      _isSeeking = false;
+    }
 
     _currentPosition = pEvent.position;
     updateTrackedTime();
@@ -189,45 +207,45 @@ var _gaq = _gaq || [];
       resetLocalStorage();
     }
 
-    if((pEvent.position * 100)/pEvent.duration >= 25 && !_milestonesTracked.MILESTONE_25)
+    if(!_isSeeking)
     {
-      log('Track 25% Milestone');
-      _milestonesTracked.MILESTONE_25 = true;
-      _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_25, _customVideoID, -1, true]);
-    }
-    else if((pEvent.position * 100)/pEvent.duration >= 50 && !_milestonesTracked.MILESTONE_50)
-    {
-      log('Track 50% Milestone');
-      _milestonesTracked.MILESTONE_50 = true;
-      _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_50, _customVideoID, -1, true]);
-    }
-    else if((pEvent.position * 100)/pEvent.duration >= 75 && !_milestonesTracked.MILESTONE_75)
-    {
-      log('Track 75% Milestone');
-      _milestonesTracked.MILESTONE_75 = true;
-      _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_75, _customVideoID, -1, true]);
+      var percent = (pEvent.position * 100)/pEvent.duration;
+
+      // log('percent', percent);
+
+      if((percent >= 25 && percent < 30) && !_milestonesTracked.MILESTONE_25)
+      {
+        log('Track 25% Milestone');
+        _milestonesTracked.MILESTONE_25 = true;
+        _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_25, _customVideoID, -1, true]);
+      }
+      else if((percent >= 50 && percent < 55) && !_milestonesTracked.MILESTONE_50)
+      {
+        log('Track 50% Milestone');
+        _milestonesTracked.MILESTONE_50 = true;
+        _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_50, _customVideoID, -1, true]);
+      }
+      else if((percent >= 75 && percent < 80) && !_milestonesTracked.MILESTONE_75)
+      {
+        log('Track 75% Milestone');
+        _milestonesTracked.MILESTONE_75 = true;
+        _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_75, _customVideoID, -1, true]);
+      }
     }
   }
 
   function onMediaSeekNotify(pEvent)
   {
-    log('onMediaSeekNotify', pEvent);
+    if(!_isSeeking) log('onMediaSeekNotify()', pEvent);
 
-    // if(pEvent.position > _currentPosition)
-    // {
-    //   _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_FORWARD, _customVideoID, -1, true]);
-    // }
-    // else
-    // {
-    //   _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_BACKWARD, _customVideoID, -1, true]);
-    // }
+    _isSeeking = true;
   }
 
   function onMediaStop(pEvent)
   {
     log('onMediaStop', pEvent);
 
-    if(!_mediaComplete && !_mediaPaused)
+    if(!_mediaComplete && !_mediaPaused && !_isSeeking)
     {
       _mediaPaused = true;
       _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_PAUSE, _customVideoID, -1, true]);
