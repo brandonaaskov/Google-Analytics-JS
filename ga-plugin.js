@@ -7,14 +7,17 @@ var _gaq = _gaq || [];
 })();
 
 (function(){
-  var _accountID = '',
+  var _accountID = 'UA-22883602-1', //UA-XXXXX-X
   _debug = true, //toggle to see console output in your brower's debug tools
-  _experience,
-  _videoPlayer,
+  _player = brightcove.api.getExperience(),
+  _experience = _player.getModule(brightcove.api.modules.APIModules.EXPERIENCE),
+  _videoPlayer = _player.getModule(brightcove.api.modules.APIModules.VIDEO_PLAYER),
+  _advertising = _player.getModule(brightcove.api.modules.APIModules.ADVERTISING),
   _currentVideo,
   _customVideoID,
   _mediaComplete = true,
   _mediaPaused = false,
+  _progressEventCounter = 0, //this is solely for fixing the seeking issues
   _isSeeking = false,
   _milestonesTracked = {
     MILESTONE_25: false,
@@ -32,12 +35,7 @@ var _gaq = _gaq || [];
   //Google Analytics: Actions
   var _actions = {
     AD_START: 'Ad Start',
-    AD_PAUSE: 'Ad Paused',
-    AD_POSTROLLS_COMPLETE: 'Ad Postrolls Complete',
-    AD_RESUME: 'Ad Resume',
     AD_COMPLETE: 'Ad Complete',
-    ENTER_FULLSCREEN: 'Fullscreen Entered',
-    EXIT_FULLSCREEN: 'Fullscreen Exited',
     MEDIA_ABANDONED: 'Media Abandoned',
     MEDIA_BEGIN: 'Media Begin',
     MEDIA_ERROR: 'Media Error',
@@ -48,15 +46,12 @@ var _gaq = _gaq || [];
     MILESTONE_50: '50% Milestone Passed',
     MILESTONE_75: '75% Milestone Passed',
     PLAYER_LOAD: 'Player Load',
+    PLAYER_RESIZED_DOWN: 'Player Resized Down',
+    PLAYER_RESIZED_UP: 'Player Resized Up',
     SEEK_FORWARD: 'Seeked Forward',
     SEEK_BACKWARD: 'Seeked Backward',
     VIDEO_LOAD: 'Video Load'
   };
-  
-  //grab API Modules
-  var player = brightcove.api.getExperience();
-  _experience = player.getModule(brightcove.api.modules.APIModules.EXPERIENCE);
-  _videoPlayer = player.getModule(brightcove.api.modules.APIModules.VIDEO_PLAYER);
 
   _experience.getExperienceID(function(pExperienceID){
     _experienceID = pExperienceID;
@@ -167,48 +162,33 @@ var _gaq = _gaq || [];
   function onMediaProgress(pEvent)
   {
     log('onMediaProgress()', pEvent);
-
+    
     if(_isSeeking) //must be before _currentPosition gets updated because of the check in here
     {
-      if(pEvent.position > _currentPosition)
+      if(_progressEventCounter < 3) //3 is a magic number - just need a few events before i can confirm it's actually playing back
       {
-        _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_FORWARD, _customVideoID, -1, true]);
+        _progressEventCounter++;
       }
       else
       {
-        _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_BACKWARD, _customVideoID, -1, true]);
+        if(pEvent.position > _currentPosition)
+        {
+          _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_FORWARD, _customVideoID, -1, true]);
+        }
+        else
+        {
+          _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_BACKWARD, _customVideoID, -1, true]);
+        }
+
+        log('setting _isSeeking to false');
+        _isSeeking = false;
       }
-
-      log('setting _isSeeking to false');
-      _isSeeking = false;
     }
-
-    _currentPosition = pEvent.position;
-    updateTrackedTime();
-    
-    /*
-    This will track the media complete event when the user has watched 98% or more of the video. 
-    Why do it this way and not use the Player API's event? The mediaComplete event will 
-    only fire once, so if a video is replayed, it won't fire again. Why 98%? If the video's 
-    duration is 3 minutes, it might really be 3 minutes and .145 seconds (as an example). When 
-    we track the position here, there's a very high likelihood that the current position will 
-    never equal the duration's value, even when the video gets to the very end. We use 98% since 
-    short videos may never see 99%: if the position is 15.01 seconds and the video's duration 
-    is 15.23 seconds, that's just over 98% and that's not an unlikely scenario. If the video is 
-    long-form content (let's say an hour), that leaves 1.2 minutes of video to play before the 
-    true end of the video. However, most content of that length has credits where a user will 
-    drop off anyway, and in most cases content owners want to still track that as a media 
-    complete event. Feel free to change this logic as needed, but do it cautiously and test as 
-    much as you possibly can!
-    */
-    if(pEvent.position/pEvent.duration > .98 && !_mediaComplete)
+    else
     {
-      onMediaComplete(pEvent);
-      resetLocalStorage();
-    }
+      _currentPosition = pEvent.position;
+      updateTrackedTime();
 
-    if(!_isSeeking)
-    {
       var percent = (pEvent.position * 100)/pEvent.duration;
 
       // log('percent', percent);
@@ -232,6 +212,27 @@ var _gaq = _gaq || [];
         _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_75, _customVideoID, -1, true]);
       }
     }
+    
+    /*
+    This will track the media complete event when the user has watched 98% or more of the video. 
+    Why do it this way and not use the Player API's event? The mediaComplete event will 
+    only fire once, so if a video is replayed, it won't fire again. Why 98%? If the video's 
+    duration is 3 minutes, it might really be 3 minutes and .145 seconds (as an example). When 
+    we track the position here, there's a very high likelihood that the current position will 
+    never equal the duration's value, even when the video gets to the very end. We use 98% since 
+    short videos may never see 99%: if the position is 15.01 seconds and the video's duration 
+    is 15.23 seconds, that's just over 98% and that's not an unlikely scenario. If the video is 
+    long-form content (let's say an hour), that leaves 1.2 minutes of video to play before the 
+    true end of the video. However, most content of that length has credits where a user will 
+    drop off anyway, and in most cases content owners want to still track that as a media 
+    complete event. Feel free to change this logic as needed, but do it cautiously and test as 
+    much as you possibly can!
+    */
+    if(pEvent.position/pEvent.duration > .98 && !_mediaComplete)
+    {
+      onMediaComplete(pEvent);
+      resetLocalStorage();
+    }
   }
 
   function onMediaSeekNotify(pEvent)
@@ -239,17 +240,20 @@ var _gaq = _gaq || [];
     if(!_isSeeking) log('onMediaSeekNotify()', pEvent);
 
     _isSeeking = true;
+    _progressEventCounter = 0;
   }
 
   function onMediaStop(pEvent)
   {
     log('onMediaStop', pEvent);
 
-    if(!_mediaComplete && !_mediaPaused && !_isSeeking)
-    {
-      _mediaPaused = true;
-      _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_PAUSE, _customVideoID, -1, true]);
-    }
+    setTimeout(function(){
+      if(!_mediaComplete && !_mediaPaused && !_isSeeking)
+      {
+        _mediaPaused = true;
+        _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_PAUSE, _customVideoID, -1, true]);
+      }
+    }, 250);
   }
   //----------------------------------------------------------------------
 
@@ -271,6 +275,7 @@ var _gaq = _gaq || [];
 
     _mediaComplete = true;
     _timeWatched = 0;
+    _progressEventCounter = 0;
     resetMilestoneFlags();
 
     log('updateCurrentVideo', _currentVideo);
