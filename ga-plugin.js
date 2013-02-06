@@ -7,7 +7,7 @@ var _gaq = _gaq || [];
 })();
 
 (function(){
-  var _accountID = 'UA-22883602-1', //UA-XXXXX-X
+  var _accountID = 'UA-XXXXX-X',
   _debug = true, //toggle to see console output in your brower's debug tools
   _player = brightcove.api.getExperience(),
   _experience = _player.getModule(brightcove.api.modules.APIModules.EXPERIENCE),
@@ -71,23 +71,20 @@ var _gaq = _gaq || [];
   //---------------------------------------------------------------------- INIT
   function initialize()
   {
-    log('window.location.href', window.location.href);
-    log('window.location.href', window.location.href);
-
     _localStorageAvailable = isLocalStorageAvailable();
     checkAbandonedVideo(); //this has to happen before updateCurrentVideo() is called
-    updateCurrentVideo();
-
-    _gaq.push(function(){
-      var accountID = getAccountID();
-      log('account id', accountID);
-      _gat._getTracker(accountID, 'bcGA'); //initialize google analytics tracker
+    updateCurrentVideo(function(){
+      _gaq.push(function(){
+        // var parentURL = (window.location != window.parent.location) ? document.referrer: document.location;
+        _gaq.push(['_trackPageview', _accountID]);
+      });
     });
 
-    _gaq.push(function(){
-      var parentURL = (window.location != window.parent.location) ? document.referrer: document.location;
-      _gaq.push(['bcGA._trackPageview', parentURL]);
-    });
+    var accountID = getAccountID();
+    log('account id', accountID);
+
+    _gaq.push(['_setAccount', accountID]);
+    checkAccountID();
 
     //setup event listeners
     _videoPlayer.addEventListener(_mediaEvents.BEGIN, onMediaBegin);
@@ -109,7 +106,7 @@ var _gaq = _gaq || [];
 
     if(_mediaComplete)
     {
-      _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_BEGIN, _customVideoID, -1, true]);
+      _gaq.push(['_trackEvent', _category, _actions.MEDIA_BEGIN, _customVideoID, -1, true]);
     }
 
     _mediaComplete = false;
@@ -128,7 +125,7 @@ var _gaq = _gaq || [];
 
     if(!_mediaComplete)
     {
-      _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_COMPLETE, _customVideoID, -1, true]);
+      _gaq.push(['_trackEvent', _category, _actions.MEDIA_COMPLETE, _customVideoID, -1, true]);
     }
     
     _mediaComplete = true;
@@ -138,12 +135,14 @@ var _gaq = _gaq || [];
   {
     log('onMediaError()', pEvent);
 
-    _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_ERROR, _customVideoID, -1, true]);
+    _gaq.push(['_trackEvent', _category, _actions.MEDIA_ERROR, _customVideoID, -1, true]);
   }
 
   function onMediaPlay(pEvent)
   {
     log('onMediaPlay()', pEvent);
+
+    checkAccountID();
 
     if(_mediaComplete)
     {
@@ -154,14 +153,14 @@ var _gaq = _gaq || [];
       if(_mediaPaused && !_isSeeking)
       {
         _mediaPaused = false;
-        _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_RESUME, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MEDIA_RESUME, _customVideoID, -1, true]);
       }
     }
   }
 
   function onMediaProgress(pEvent)
   {
-    log('onMediaProgress()', pEvent);
+    // log('onMediaProgress()', pEvent);
     
     if(_isSeeking) //must be before _currentPosition gets updated because of the check in here
     {
@@ -173,11 +172,11 @@ var _gaq = _gaq || [];
       {
         if(pEvent.position > _currentPosition)
         {
-          _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_FORWARD, _customVideoID, -1, true]);
+          _gaq.push(['_trackEvent', _category, _actions.SEEK_FORWARD, _customVideoID, -1, true]);
         }
         else
         {
-          _gaq.push(['bcGA._trackEvent', _category, _actions.SEEK_BACKWARD, _customVideoID, -1, true]);
+          _gaq.push(['_trackEvent', _category, _actions.SEEK_BACKWARD, _customVideoID, -1, true]);
         }
 
         log('setting _isSeeking to false');
@@ -197,19 +196,19 @@ var _gaq = _gaq || [];
       {
         log('Track 25% Milestone');
         _milestonesTracked.MILESTONE_25 = true;
-        _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_25, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_25, _customVideoID, -1, true]);
       }
       else if((percent >= 50 && percent < 55) && !_milestonesTracked.MILESTONE_50)
       {
         log('Track 50% Milestone');
         _milestonesTracked.MILESTONE_50 = true;
-        _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_50, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_50, _customVideoID, -1, true]);
       }
       else if((percent >= 75 && percent < 80) && !_milestonesTracked.MILESTONE_75)
       {
         log('Track 75% Milestone');
         _milestonesTracked.MILESTONE_75 = true;
-        _gaq.push(['bcGA._trackEvent', _category, _actions.MILESTONE_75, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_75, _customVideoID, -1, true]);
       }
     }
     
@@ -251,7 +250,7 @@ var _gaq = _gaq || [];
       if(!_mediaComplete && !_mediaPaused && !_isSeeking)
       {
         _mediaPaused = true;
-        _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_PAUSE, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MEDIA_PAUSE, _customVideoID, -1, true]);
       }
     }, 250);
   }
@@ -259,7 +258,7 @@ var _gaq = _gaq || [];
 
 
   //---------------------------------------------------------------------- HELPER FUNCTIONS
-  function updateCurrentVideo()
+  function updateCurrentVideo(pCallback)
   {
     log('updateCurrentVideo()');
 
@@ -279,6 +278,8 @@ var _gaq = _gaq || [];
     resetMilestoneFlags();
 
     log('updateCurrentVideo', _currentVideo);
+
+    if(pCallback) pCallback();
   }
 
   function updateTrackedTime()
@@ -330,7 +331,7 @@ var _gaq = _gaq || [];
         var timeWatched = Math.round(localStorage.abandonedTimeWatched);
         
         log("Tracking video that was previously uncompleted: " + customVideoID + " : " + timeWatched);
-        _gaq.push(['bcGA._trackEvent', _category, _actions.MEDIA_ABANDONED, customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MEDIA_ABANDONED, customVideoID, -1, true]);
       }
 
       resetLocalStorage();
@@ -375,7 +376,19 @@ var _gaq = _gaq || [];
       alert("You haven't added the accountID parameter to your Google Analytics (JS) plugin URL."); 
     }
 
-    return;
+    return _accountID;
+  }
+
+  function checkAccountID()
+  {
+    if(_debug)
+    {
+      _gaq.push(function() {
+        var pageTracker = _gat._getTrackerByName(); // Gets the default tracker.
+        var accountID = pageTracker._getAccount();
+        log('Checking to make sure account id is set', accountID);
+      });
+    }
   }
 
   function log(pMessage, pObject)
