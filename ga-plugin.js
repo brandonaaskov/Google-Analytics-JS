@@ -8,7 +8,7 @@ var _gaq = _gaq || [];
 
 (function(){
   var _accountID = 'UA-XXXXX-X',
-  _debug = true, //toggle to see console output in your brower's debug tools
+  _debug = false, //toggle to see console output in your brower's debug tools
   _player = brightcove.api.getExperience(),
   _experience = _player.getModule(brightcove.api.modules.APIModules.EXPERIENCE),
   _videoPlayer = _player.getModule(brightcove.api.modules.APIModules.VIDEO_PLAYER),
@@ -106,7 +106,7 @@ var _gaq = _gaq || [];
 
     if(_mediaComplete)
     {
-      _gaq.push(['_trackEvent', _category, _actions.MEDIA_BEGIN, _customVideoID, -1, true]);
+      _gaq.push(['_trackEvent', _category, _actions.MEDIA_BEGIN, getCustomEventName(_actions.MEDIA_BEGIN), -1, true]);
     }
 
     _mediaComplete = false;
@@ -125,7 +125,7 @@ var _gaq = _gaq || [];
 
     if(!_mediaComplete)
     {
-      _gaq.push(['_trackEvent', _category, _actions.MEDIA_COMPLETE, _customVideoID, -1, true]);
+      _gaq.push(['_trackEvent', _category, _actions.MEDIA_COMPLETE, getCustomEventName(_actions.MEDIA_COMPLETE), -1, true]);
     }
     
     _mediaComplete = true;
@@ -135,7 +135,7 @@ var _gaq = _gaq || [];
   {
     log('onMediaError()', pEvent);
 
-    _gaq.push(['_trackEvent', _category, _actions.MEDIA_ERROR, _customVideoID, -1, true]);
+    _gaq.push(['_trackEvent', _category, _actions.MEDIA_ERROR, getCustomEventName(_actions.MEDIA_ERROR), -1, true]);
   }
 
   function onMediaPlay(pEvent)
@@ -153,7 +153,7 @@ var _gaq = _gaq || [];
       if(_mediaPaused && !_isSeeking)
       {
         _mediaPaused = false;
-        _gaq.push(['_trackEvent', _category, _actions.MEDIA_RESUME, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MEDIA_RESUME, getCustomEventName(_actions.MEDIA_RESUME), -1, true]);
       }
     }
   }
@@ -172,11 +172,11 @@ var _gaq = _gaq || [];
       {
         if(pEvent.position > _currentPosition)
         {
-          _gaq.push(['_trackEvent', _category, _actions.SEEK_FORWARD, _customVideoID, -1, true]);
+          _gaq.push(['_trackEvent', _category, _actions.SEEK_FORWARD, getCustomEventName(_actions.SEEK_FORWARD), -1, true]);
         }
         else
         {
-          _gaq.push(['_trackEvent', _category, _actions.SEEK_BACKWARD, _customVideoID, -1, true]);
+          _gaq.push(['_trackEvent', _category, _actions.SEEK_BACKWARD, getCustomEventName(_actions.SEEK_BACKWARD), -1, true]);
         }
 
         log('setting _isSeeking to false');
@@ -196,19 +196,19 @@ var _gaq = _gaq || [];
       {
         log('Track 25% Milestone');
         _milestonesTracked.MILESTONE_25 = true;
-        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_25, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_25, getCustomEventName(_actions.MILESTONE_25), -1, true]);
       }
       else if((percent >= 50 && percent < 55) && !_milestonesTracked.MILESTONE_50)
       {
         log('Track 50% Milestone');
         _milestonesTracked.MILESTONE_50 = true;
-        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_50, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_50, getCustomEventName(_actions.MILESTONE_50), -1, true]);
       }
       else if((percent >= 75 && percent < 80) && !_milestonesTracked.MILESTONE_75)
       {
         log('Track 75% Milestone');
         _milestonesTracked.MILESTONE_75 = true;
-        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_75, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MILESTONE_75, getCustomEventName(_actions.MILESTONE_75), -1, true]);
       }
     }
     
@@ -250,7 +250,7 @@ var _gaq = _gaq || [];
       if(!_mediaComplete && !_mediaPaused && !_isSeeking)
       {
         _mediaPaused = true;
-        _gaq.push(['_trackEvent', _category, _actions.MEDIA_PAUSE, _customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MEDIA_PAUSE, getCustomEventName(_actions.MEDIA_PAUSE), -1, true]);
       }
     }, 250);
   }
@@ -331,7 +331,7 @@ var _gaq = _gaq || [];
         var timeWatched = Math.round(localStorage.abandonedTimeWatched);
         
         log("Tracking video that was previously uncompleted: " + customVideoID + " : " + timeWatched);
-        _gaq.push(['_trackEvent', _category, _actions.MEDIA_ABANDONED, customVideoID, -1, true]);
+        _gaq.push(['_trackEvent', _category, _actions.MEDIA_ABANDONED, getCustomEventName(_actions.MEDIA_ABANDONED), -1, true]);
       }
 
       resetLocalStorage();
@@ -342,7 +342,12 @@ var _gaq = _gaq || [];
   {
     log('getCustomVideoID()');
 
-    return pCurrentVideo.id + " | " + pCurrentVideo.displayName;
+    return pCurrentVideo.id + ' | ' + pCurrentVideo.displayName;
+  }
+
+  function getCustomEventName(pEventName)
+  {
+    return _customVideoID + ' | ' + pEventName;
   }
 
   function resetMilestoneFlags()
