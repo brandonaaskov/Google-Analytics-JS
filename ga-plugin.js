@@ -30,27 +30,28 @@ var _gaq = _gaq || [];
   _currentPosition,
   _previousTimestamp,
   _localStorageAvailable = false,
-  _mediaEvents = brightcove.api.events.MediaEvent;
+  _mediaEvents = brightcove.api.events.MediaEvent,
+  _adEvents = brightcove.api.events.AdEvent,
+  _version = '1.1.0';
 
   //Google Analytics: Actions
   var _actions = {
-    AD_START: 'Ad Start',
     AD_COMPLETE: 'Ad Complete',
+    AD_START: 'Ad Start',
     MEDIA_ABANDONED: 'Media Abandoned',
     MEDIA_BEGIN: 'Media Begin',
+    MEDIA_COMPLETE: 'Media Complete',
     MEDIA_ERROR: 'Media Error',
     MEDIA_PAUSE: 'Media Pause',
     MEDIA_RESUME: 'Media Resume',
-    MEDIA_COMPLETE: 'Media Complete',
     MILESTONE_25: '25% Milestone Passed',
     MILESTONE_50: '50% Milestone Passed',
     MILESTONE_75: '75% Milestone Passed',
     PLAYER_LOAD: 'Player Load',
     PLAYER_RESIZED_DOWN: 'Player Resized Down',
     PLAYER_RESIZED_UP: 'Player Resized Up',
-    SEEK_FORWARD: 'Seeked Forward',
     SEEK_BACKWARD: 'Seeked Backward',
-    VIDEO_LOAD: 'Video Load'
+    SEEK_FORWARD: 'Seeked Forward'
   };
 
   _experience.getExperienceID(function(pExperienceID){
@@ -71,20 +72,17 @@ var _gaq = _gaq || [];
   //---------------------------------------------------------------------- INIT
   function initialize()
   {
+    var accountID = getAccountID();
+    _gaq.push(['_setAccount', accountID]);
+
     _localStorageAvailable = isLocalStorageAvailable();
     checkAbandonedVideo(); //this has to happen before updateCurrentVideo() is called
     updateCurrentVideo(function(){
       _gaq.push(function(){
         // var parentURL = (window.location != window.parent.location) ? document.referrer: document.location;
-        _gaq.push(['_trackPageview', _accountID]);
+        _gaq.push(['_trackPageview', _customVideoID]);
       });
     });
-
-    var accountID = getAccountID();
-    log('account id', accountID);
-
-    _gaq.push(['_setAccount', accountID]);
-    checkAccountID();
 
     //setup event listeners
     _videoPlayer.addEventListener(_mediaEvents.BEGIN, onMediaBegin);
@@ -95,6 +93,9 @@ var _gaq = _gaq || [];
     _videoPlayer.addEventListener(_mediaEvents.PROGRESS, onMediaProgress);
     _videoPlayer.addEventListener(_mediaEvents.SEEK_NOTIFY, onMediaSeekNotify);
     _videoPlayer.addEventListener(_mediaEvents.STOP, onMediaStop);
+
+    _advertising.addEventListener(_adEvents.COMPLETE, onAdComplete);
+    _advertising.addEventListener(_adEvents.START, onAdStart);
   }
   //----------------------------------------------------------------------
 
@@ -254,6 +255,16 @@ var _gaq = _gaq || [];
       }
     }, 250);
   }
+
+  function onAdComplete(pEvent)
+  {
+    _gaq.push(['_trackEvent', _category, _actions.AD_COMPLETE, getCustomEventName(_actions.AD_COMPLETE), -1, true]);
+  }
+
+  function onAdStart(pEvent)
+  {
+    _gaq.push(['_trackEvent', _category, _actions.AD_START, getCustomEventName(_actions.AD_START), -1, true]);
+  }
   //----------------------------------------------------------------------
 
 
@@ -398,9 +409,12 @@ var _gaq = _gaq || [];
 
   function log(pMessage, pObject)
   {
-    var message = 'GA-HTML5: ' + pMessage;
+    if(_debug)
+    {
+      var message = 'GA-HTML5: ' + pMessage;
 
-    (!pObject) ? console.log(message) : console.log(message, pObject);
+      (!pObject) ? console.log(message) : console.log(message, pObject);
+    }
   }
   //----------------------------------------------------------------------
 }());
