@@ -6,33 +6,33 @@ var _gaq = _gaq || [];
   var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
 })();
 
-(function(){
-  var _accountID = 'UA-XXXXX-X',
-  _debug = false, //toggle to see console output in your brower's debug tools
-  _player = brightcove.api.getExperience(),
-  _experience = _player.getModule(brightcove.api.modules.APIModules.EXPERIENCE),
-  _videoPlayer = _player.getModule(brightcove.api.modules.APIModules.VIDEO_PLAYER),
-  _advertising = _player.getModule(brightcove.api.modules.APIModules.ADVERTISING),
-  _currentVideo,
-  _customVideoID,
-  _mediaComplete = true,
-  _mediaPaused = false,
-  _progressEventCounter = 0, //this is solely for fixing the seeking issues
-  _isSeeking = false,
-  _milestonesTracked = {
-    MILESTONE_25: false,
-    MILESTONE_50: false,
-    MILESTONE_75: false
-  },
-  _experienceID,
-  _category, //the category string to be used for all the event tracking
-  _timeWatched = 0,
-  _currentPosition,
-  _previousTimestamp,
-  _localStorageAvailable = false,
-  _mediaEvents = brightcove.api.events.MediaEvent,
-  _adEvents = brightcove.api.events.AdEvent,
-  _version = '1.1.0';
+(function(window, brightcove){
+  var _accountID = 'UA-123456-ab',
+      _debug = true, //toggle to see console output in your brower's debug tools
+      _player = brightcove.api.getExperience(),
+      _experience = _player.getModule(brightcove.api.modules.APIModules.EXPERIENCE),
+      _videoPlayer = _player.getModule(brightcove.api.modules.APIModules.VIDEO_PLAYER),
+      _advertising = _player.getModule(brightcove.api.modules.APIModules.ADVERTISING),
+      _currentVideo,
+      _customVideoID,
+      _mediaComplete = true,
+      _mediaPaused = false,
+      _progressEventCounter = 0, //this is solely for fixing the seeking issues
+      _isSeeking = false,
+      _milestonesTracked = {
+        MILESTONE_25: false,
+        MILESTONE_50: false,
+        MILESTONE_75: false
+      },
+      _experienceID,
+      _category, //the category string to be used for all the event tracking
+      _timeWatched = 0,
+      _currentPosition,
+      _previousTimestamp,
+      _localStorageAvailable = false,
+      _mediaEvents = brightcove.api.events.MediaEvent,
+      _adEvents = brightcove.api.events.AdEvent,
+      _version = '1.1.1';
 
   //Google Analytics: Actions
   var _actions = {
@@ -228,7 +228,7 @@ var _gaq = _gaq || [];
     complete event. Feel free to change this logic as needed, but do it cautiously and test as 
     much as you possibly can!
     */
-    if(pEvent.position/pEvent.duration > .98 && !_mediaComplete)
+    if(pEvent.position/pEvent.duration > 0.98 && !_mediaComplete)
     {
       onMediaComplete(pEvent);
       resetLocalStorage();
@@ -314,14 +314,14 @@ var _gaq = _gaq || [];
 
   function isLocalStorageAvailable()
   {
-    if(!(JSON['stringify'] && JSON['parse']))
+    if(!(JSON.stringify && JSON.parse))
     {
       return false;
     }
 
     try 
     {
-      return 'localStorage' in window && window['localStorage'] !== null;
+      return 'localStorage' in window && window.localStorage !== null;
     } 
     catch(pError) 
     {
@@ -400,7 +400,7 @@ var _gaq = _gaq || [];
     if(_debug)
     {
       _gaq.push(function() {
-        var pageTracker = _gat._getTrackerByName(); // Gets the default tracker.
+        var pageTracker = window._gat._getTrackerByName(); // Gets the default tracker.
         var accountID = pageTracker._getAccount();
         log('Checking to make sure account id is set', accountID);
       });
@@ -411,10 +411,10 @@ var _gaq = _gaq || [];
   {
     if(_debug)
     {
-      var message = 'GA-HTML5: ' + pMessage;
+      var message = 'GA-HTML5 ('+ _version +'): ' + pMessage;
 
       (!pObject) ? console.log(message) : console.log(message, pObject);
     }
   }
   //----------------------------------------------------------------------
-}());
+}(window, window.brightcove));
