@@ -1,4 +1,7 @@
 #Brightcove Google Analytics JS Plugin
+
+***Note/Warning: This has been reported to only work on Android. I'll be back from vacation on 09/23, at which time I'll start evaluating overhauling/updating this library. I think it's time :)***
+
 This plugin file allows you to integrate the HTML5 player's events and details with your Google Analytics account. Fairly plug-and-play, you need to only change the account ID in the code to make sure the events get sent to the right place.
 
 ##Setup
